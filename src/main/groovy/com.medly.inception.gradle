@@ -1,0 +1,20 @@
+plugins {
+    // precompiled script plugins in *.gradle files
+    id 'groovy-gradle-plugin'
+
+    // publishing to gradle plugin portal
+    id "com.gradle.plugin-publish"
+
+    //just for local publishing
+    id 'maven-publish'
+}
+
+repositories {
+    // automatically allow plugin dependencies to be added from GPP
+    gradlePluginPortal()
+
+    // Also add maven central just in case some non-plugin deps are required
+    mavenCentral()
+}
+
+

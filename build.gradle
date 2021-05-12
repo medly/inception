@@ -1,0 +1,34 @@
+plugins {
+    // this plugin gets applied only to this project
+    id 'groovy-gradle-plugin'
+
+    // publishing to gradle plugin portal
+    id "com.gradle.plugin-publish" version "0.14.0"
+}
+
+repositories {
+    gradlePluginPortal()
+}
+
+dependencies {
+    // the dependency coordinates for "com.gradle.plugin-publish"
+    implementation "com.gradle.publish:plugin-publish-plugin:0.14.0"
+}
+
+
+group = "com.medly"
+
+pluginBundle {
+    website = 'https://github.com/medly/inception'
+    vcsUrl = 'https://github.com/medly/inception'
+    description = "A Gradle Plugin to Build Gradle Plugins"
+    tags = ['gradle', 'plugin', 'convention']
+
+    mavenCoordinates {
+        groupId = project.group.toString()
+        artifactId = project.name
+        version = project.version.toString()
+    }
+}
+
+
