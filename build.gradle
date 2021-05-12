@@ -17,17 +17,28 @@ dependencies {
 
 
 group = "com.medly"
+description = "A Gradle Plugin to Build Gradle Plugins"
 
 pluginBundle {
     website = 'https://github.com/medly/inception'
     vcsUrl = 'https://github.com/medly/inception'
-    description = "A Gradle Plugin to Build Gradle Plugins"
+    description = project.description
     tags = ['gradle', 'plugin', 'convention']
 
     mavenCoordinates {
         groupId = project.group.toString()
         artifactId = project.name
         version = project.version.toString()
+    }
+}
+
+
+pluginDescriptors { // we are configuring task here, this is not an extension block
+    afterEvaluate { // after this task is evaluated
+        declarations.get().each { PluginDeclaration declaration ->
+            declaration.setDisplayName(declaration.id) // set it to id for now
+            declaration.setDescription(project.description)
+        }
     }
 }
 
