@@ -1,3 +1,8 @@
+import com.gradle.publish.PluginBundleExtension
+
+import java.util.stream.Collector
+import java.util.stream.Collectors
+
 plugins {
     // precompiled script plugins in *.gradle files
     id 'groovy-gradle-plugin'
@@ -5,7 +10,7 @@ plugins {
     // publishing to gradle plugin portal
     id "com.gradle.plugin-publish"
 
-    //just for local publishing
+    //just for local publishing / testing
     id 'maven-publish'
 }
 
@@ -18,3 +23,108 @@ repositories {
 }
 
 
+dependencies {
+    // the dependency coordinates for "com.gradle.plugin-publish"
+    implementation "com.gradle.publish:plugin-publish-plugin:0.15.0"
+
+    testImplementation gradleTestKit()
+    testImplementation 'org.spockframework:spock-core:2.0-groovy-3.0', {
+        exclude group: 'org.codehaus.groovy'
+    }
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+}
+
+
+// More generic and lazy configuration instead of `test { useJUnitPlatform() }`
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+
+// version can be provided at runtime
+// require coordinates and website
+// automatic failures vs/ when publishing a pre-task fails the build
+// afterEvaluate makes the config order dependent and will always execute
+// we can check taskGraph and configure the plugin only if necessary
+
+
+gradle.taskGraph.whenReady { graph ->
+    logger.info(" task graph ready with ${graph.getAllTasks()*.name.toString()}" )
+
+    if (graph.hasTask(':publishPlugin') || graph.hasTask(':printPluginInfo')) {
+        logger.info("Need to configure pluginBundle extension")
+
+        project.getExtensions().configure(com.gradle.publish.PluginBundleExtension.class) {
+            it.description ?= project.description
+            it.website ?= it.vcsUrl
+            it.mavenCoordinates.groupId ?= project.group.toString()
+            it.mavenCoordinates.artifactId ?= project.name.toString()
+            it.mavenCoordinates.version ?= project.version.toString()
+        }
+    }
+}
+
+// Configure the Task conditionally
+tasks.withType(GeneratePluginDescriptors).configureEach { task ->
+    logger.info("Conditional config called for GeneratePluginDescriptors")
+
+    task.declarations.get().each { PluginDeclaration declaration ->
+        logger.info("configuring default for ${declaration.id}")
+        // set it to id for now
+        declaration.displayName ?= declaration.id
+
+        def pluginDesc = project.getExtensions().getByType(com.gradle.publish.PluginBundleExtension.class)?.description
+        declaration.description ?= (pluginDesc ?: project.description)
+    }
+}
+
+
+tasks.named("publishPlugins").configure {
+    it.dependsOn("printPluginInfo")
+}
+
+tasks.register("printPluginInfo") {
+
+    it.dependsOn("pluginDescriptors")
+
+    doLast {
+        PluginBundleExtension pbe = project.getExtensions().getByType(PluginBundleExtension.class)
+
+        logger.lifecycle(underlined("PluginBundle (required for publishing)"))
+        logger.lifecycle(prettyMap([
+            description     : pbe.description,
+            website         : pbe.website,
+            vcsUrl          : pbe.vcsUrl,
+            tags            : pbe.tags,
+            mavenCoordinates: "${pbe.mavenCoordinates.groupId}:${pbe.mavenCoordinates.artifactId}:${pbe.mavenCoordinates.version}"
+        ]))
+
+        GradlePluginDevelopmentExtension pde = project.getExtensions().getByType(GradlePluginDevelopmentExtension.class)
+        SortedMap<String, PluginDeclaration> plugins = pde.getPlugins().getAsMap()
+
+        plugins.forEach { k, pd ->
+            logger.lifecycle(underlined("PluginDeclaration [$k]"))
+            logger.lifecycle(prettyMap([
+                name               : pd.name,
+                id                 : pd.id,
+                implementationClass: pd.implementationClass,
+                displayName        : pd.displayName,
+                description        : pd.description
+            ]))
+        }
+
+    }
+}
+
+
+static String prettyMap(Map map) {
+    def maxKeyLen = map.keySet().max { a, b -> a.length() - b.length() }.length()
+    return map.entrySet()
+        .stream()
+        .map { String.format("%-${maxKeyLen + 1}s: %s", it.key, it.value) }
+        .collect(Collectors.joining("\n"))
+}
+
+static String underlined(String message) {
+    return "\n" + message + "\n" + ("-" * message.length())
+}
