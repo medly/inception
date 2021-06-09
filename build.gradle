@@ -3,7 +3,7 @@ plugins {
     id 'groovy-gradle-plugin'
 
     // publishing to gradle plugin portal
-    id "com.gradle.plugin-publish" version "0.14.0"
+    id "com.gradle.plugin-publish" version "0.15.0"
 }
 
 repositories {
@@ -12,7 +12,17 @@ repositories {
 
 dependencies {
     // the dependency coordinates for "com.gradle.plugin-publish"
-    implementation "com.gradle.publish:plugin-publish-plugin:0.14.0"
+    implementation "com.gradle.publish:plugin-publish-plugin:0.15.0"
+
+    testImplementation gradleTestKit()
+    testImplementation 'org.spockframework:spock-core:2.0-groovy-3.0', {
+        exclude group: 'org.codehaus.groovy'
+    }
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+}
+
+tasks.withType(Test).configureEach {// Lazy config
+    useJUnitPlatform()
 }
 
 
@@ -32,14 +42,11 @@ pluginBundle {
     }
 }
 
-
-pluginDescriptors { // we are configuring task here, this is not an extension block
-    afterEvaluate { // after this task is evaluated
+project.afterEvaluate { // after project is evaluated
+    pluginDescriptors { // we are configuring task here, this is not an extension block
         declarations.get().each { PluginDeclaration declaration ->
             declaration.setDisplayName(declaration.id) // set it to id for now
             declaration.setDescription(project.description)
         }
     }
 }
-
-
